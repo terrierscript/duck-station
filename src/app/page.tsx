@@ -1,6 +1,6 @@
 import Head from 'next/head'
 import React from 'react'
-import { SampleComponent } from '../components/SampleComponent'
+import { SampleComponent } from './SampleComponent'
 import { Box, Container } from '@mantine/core'
 
 export default function Home() {
