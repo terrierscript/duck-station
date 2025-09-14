@@ -1,4 +1,4 @@
-import { ColorSchemeScript, mantineHtmlProps } from "@mantine/core"
+import { ColorSchemeScript, Container, mantineHtmlProps } from "@mantine/core"
 import { Provider } from "./AppProvider"
 import '@mantine/core/styles.css'
 
@@ -19,7 +19,9 @@ export default function RootLayout({
       </head>
       <body>
         <Provider>
-          {children}
+          <Container>
+            {children}
+          </Container>
         </Provider>
       </body>
     </html>

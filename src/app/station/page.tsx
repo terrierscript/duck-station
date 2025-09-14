@@ -5,7 +5,7 @@ import { useDeferredValue, useState, useTransition } from "react"
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { useDatabase } from "../useDatabase"
-import type { StationResult } from "../duckdb"
+import type { StationResult } from "../database"
 
 const Page = () => {
   const [q, setQuery] = useState("")
@@ -18,16 +18,18 @@ const Page = () => {
 
   return (
     <Box>
-      <Input value={q} onChange={(e) => {
-        const q = e.currentTarget.value
-        setQuery(q)
-        startTransaction(async () => {
-          const result = await db?.searchAny(q)
-          setResult(result ?? [])
-        })
-      }} placeholder="Search..." />
+      <Group>
 
-      <Box>Query:{q}</Box>
+        <Input value={q} onChange={(e) => {
+          const q = e.currentTarget.value
+          setQuery(q)
+          startTransaction(async () => {
+            const result = await db?.searchAny(q)
+            setResult(result ?? [])
+          })
+        }} placeholder="Search..." />
+        <Box>Query:{q}</Box>
+      </Group>
       {isPending ? (
         <Box>Loading...</Box>
       ) : (

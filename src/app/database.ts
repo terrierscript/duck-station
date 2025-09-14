@@ -27,8 +27,9 @@ const buildDuckDbInstance = async () => {
       path: "opfs://train.db",
       accessMode: duckdb.DuckDBAccessMode.READ_WRITE
     })
-  } catch {
-    console.log("fallback")
+    console.log("load opfs")
+  } catch (e) {
+    console.log("fallback", e)
     await db.open({})
   }
 
@@ -71,7 +72,7 @@ export const database = async () => {
     const showTables = async () => {
       const list = await conn.query(`SHOW TABLES;`)
 
-      return list.toArray().map(t => t.toJSON()).map(t => t.table_name)
+      return list.toArray().map(t => t.toJSON()).map(t => t.name)
     }
 
     const createTable = async (table: string, url: string) => {
@@ -86,12 +87,9 @@ export const database = async () => {
     const loadAllData = async () => {
       console.log("load")
       const existTable = await showTables()
-      // await conn.query(`CREATE TABLE dummy (id INTEGER PRIMARY KEY, name TEXT);`)
-      // await conn.query(`DROP TABLE dummy;`)
+      console.log("existTable", existTable)
       for (const { table, url } of dataset) {
-        if (existTable.includes(table)) {
-          continue
-        }
+        if (existTable.includes(table)) continue
         await createTable(table, url)
       }
     }
@@ -142,9 +140,39 @@ export const database = async () => {
       }))
       const parsed = schema.safeParse(record)
       return parsed.success ? parsed.data.map(s => s.station) : []
+    },
+    companyLines: async () => {
+      const result = await conn.query(`
+        WITH station_line AS (
+          SELECT 
+            ANY_VALUE(line) AS line, 
+            ARRAY_AGG(station) AS station
+          FROM station LEFT JOIN line ON station.line_cd = line.line_cd
+          GROUP BY line.line_cd
+        )
+        SELECT 
+          ANY_VALUE(company) AS company, 
+          ARRAY_AGG(station_line) AS station_line
+        FROM company LEFT JOIN station_line ON company.company_cd = station_line.line.company_cd
+        GROUP BY company.company_cd
+      `)
+      const record = parseRecord(result)
+      const schema = z.array(z.object({
+        company: CompanySchema,
+        station_line: z.array(z.object({
+          line: LineSchema.nullish(),
+          station: z.array(StationSchema).nullish()
+        })).nullish()
+      }))
+      const parsed = schema.safeParse(record)
+      // console.log({ record, parsed })
+      // parsed.error && console.log(z.treeifyError(parsed.error))
+
+      return parsed.success ? parsed.data : []
     }
   }
 }
 
 type Database = Awaited<ReturnType<typeof database>>
 export type StationResult = Awaited<ReturnType<Database["searchAny"]>>
+export type CompanyLinesResult = Awaited<ReturnType<Database["companyLines"]>>

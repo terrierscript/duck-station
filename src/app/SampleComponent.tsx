@@ -2,7 +2,7 @@
 import { Box, Button, Stack, Table } from "@mantine/core"
 import { FC } from "react"
 import useSWR from "swr"
-import { database } from "./duckdb"
+import { database } from "./database"
 
 export const SampleComponent: FC<{}> = () => {
   const r = useSWR(["listStation"], async () => {

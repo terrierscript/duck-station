@@ -1,5 +1,5 @@
 import useSWRImmutable from "swr/immutable"
-import { database } from "./duckdb"
+import { database } from "./database"
 
 export const useDatabase = () => {
   const data = useSWRImmutable("database", async () => {
