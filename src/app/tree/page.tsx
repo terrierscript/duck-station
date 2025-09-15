@@ -1,34 +1,45 @@
 "use client"
 import useSWRImmutable from "swr/immutable"
 import { useDatabase } from "../useDatabase"
-import { Box, Tree, type TreeNodeData } from "@mantine/core"
+import { Box, Group, Paper, Tree, type TreeNodeData } from "@mantine/core"
+import { IconChevronDown, IconChevronRight, IconPointFilled } from '@tabler/icons-react'
+import type { DatabaseResponse } from "../database"
 
+const convertToTree = (data?: DatabaseResponse<"companyLineStationTree">) => {
+  return data?.map(c => ({
+    value: c.company.company_cd!,
+    label: c.company.company_name,
+    children: c.station_line?.map(sl => ({
+      label: sl.line?.line_name,
+      value: sl.line?.line_cd!,
+      children: sl.station?.map(s => ({
+        label: s.station_name,
+        value: s.station_cd!
+      }))
+    }))
+  }))
+}
 const Page = () => {
   const database = useDatabase()
   const companyLiens = useSWRImmutable(["r", database], () => {
-    return database?.companyLines()
+    return database?.companyLineStationTree()
   })
-  console.log(companyLiens.data)
-  const treeData: TreeNodeData[] = companyLiens.data?.map(c => {
-    return {
-      value: c.company.company_cd!,
-      label: c.company.company_name,
-      children: c.station_line?.map(sl => ({
-        label: sl.line?.line_name,
-        value: sl.line?.line_cd!,
-        children: sl.station?.map(s => ({
-          label: s.station_name,
-          value: s.station_cd!
-        }))
-      }))
-    } satisfies TreeNodeData
-  }) || []
-  // console.log(r.data)
+  const treeData: TreeNodeData[] = convertToTree(companyLiens.data) || []
 
   return <Box>
-    <Tree data={treeData}>
+    <Tree data={treeData} renderNode={({ node, expanded, elementProps, hasChildren }) => {
+      return <Group {...elementProps}>
+        {hasChildren ? (
+          expanded
+            ? <IconChevronDown />
+            : <IconChevronRight />
+        ) : (
+          <IconPointFilled />
+        )}
+        <Paper p={4} m={2} >{node.label}</Paper>
+      </Group>
+    }} />
 
-    </Tree>
   </Box>
 }
 export default Page

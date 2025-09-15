@@ -3,42 +3,22 @@ import { compressTextToGzip } from './compress'
 import arrow from 'apache-arrow'
 import z from 'zod'
 import { CompanySchema, LineSchema, StationSchema } from './Schema'
+import traverse from 'traverse'
+import { buildDuckDbInstance } from './buildDuckDbInstance'
+import superjson from "superjson"
+import { parseArrowTableSimple, parseArrowTableNested } from './parseRecord'
 
-
-const buildDuckDbInstance = async () => {
-  const JSDELIVR_BUNDLES = duckdb.getJsDelivrBundles()
-
-  // Select a bundle based on browser checks
-  const bundle = await duckdb.selectBundle(JSDELIVR_BUNDLES)
-
-  const worker_url = URL.createObjectURL(
-    new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' })
-  )
-
-  // Instantiate the asynchronus version of DuckDB-Wasm
-  const worker = new Worker(worker_url)
-  const logger = new duckdb.ConsoleLogger()
-  const db = new duckdb.AsyncDuckDB(logger, worker)
-  await db.instantiate(bundle.mainModule, bundle.pthreadWorker)
-  URL.revokeObjectURL(worker_url)
-
-  try {
-    await db.open({
-      path: "opfs://train.db",
-      accessMode: duckdb.DuckDBAccessMode.READ_WRITE
-    })
-    console.log("load opfs")
-  } catch (e) {
-    console.log("fallback", e)
-    await db.open({})
+const parseResult = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
+  const record = parseArrowTableSimple(result)
+  const parsedRecord = schema.safeParse(record)
+  if (parsedRecord.success === false) {
+    console.warn(z.treeifyError(parsedRecord.error))
+    console.warn(z.flattenError(parsedRecord.error))
+    // console.warn(z.prettifyError(parsedRecord.error))
+    return null
   }
-
-  return db
-}
-
-const parseRecord = (record: arrow.Table<any>) => {
-  const records = record.toArray().map(t => t.toJSON())
-  return JSON.parse(JSON.stringify(records))
+  const data: z.core.output<U> = parsedRecord.data
+  return data
 }
 
 const host = "http://localhost:3001"
@@ -52,65 +32,134 @@ const dataset = [
 const createTableQuery = (table: string, url: string) => {
   return `CREATE OR REPLACE TABLE ${table} AS SELECT * FROM read_csv('${url}', all_varchar=true);`
 }
-export const database = async () => {
 
+export const database = async () => {
   const db = await buildDuckDbInstance()
   const conn = await db.connect()
 
-  const setupDatabase = async () => {
-    const debugDump = async () => {
-      // schema作るのに便利
-      for (const { table, url } of dataset) {
-        console.log(createTableQuery(table, url))
-      }
-      for (const { table, url } of dataset) {
-        const sample = await conn.query(`SELECT * FROM ${table} LIMIT 1;`)
-        console.log(table, JSON.stringify(Object.keys(parseRecord(sample)[0])))
-      }
-
+  const debugDump = async () => {
+    // schema作るのに便利
+    for (const { table, url } of dataset) {
+      console.log(createTableQuery(table, url))
     }
-    const showTables = async () => {
-      const list = await conn.query(`SHOW TABLES;`)
-
-      return list.toArray().map(t => t.toJSON()).map(t => t.name)
+    for (const { table, url } of dataset) {
+      const sample = await conn.query(`SELECT * FROM ${table} LIMIT 1;`)
+      console.log(table, JSON.stringify(Object.keys(parseArrowTableSimple(sample)[0])))
     }
 
-    const createTable = async (table: string, url: string) => {
-      console.log(`Create table ${table}`)
-      const filename = `${table}.csv`
-
-      await db.registerFileURL(filename, url, duckdb.DuckDBDataProtocol.HTTP, false)
-      await conn.query(createTableQuery(table, url))
-
-    }
-
-    const loadAllData = async () => {
-      console.log("load")
-      const existTable = await showTables()
-      console.log("existTable", existTable)
-      for (const { table, url } of dataset) {
-        if (existTable.includes(table)) continue
-        await createTable(table, url)
-      }
-    }
-    await loadAllData()
   }
-  await setupDatabase()
+  const showTables = async () => {
+    const list = await conn.query(`SHOW TABLES;`)
+
+    return list.toArray().map(t => t.toJSON()).map(t => t.name)
+  }
+
+  const createTable = async (table: string, url: string) => {
+    console.log(`Create table ${table}`)
+    const filename = `${table}.csv`
+
+    await db.registerFileURL(filename, url, duckdb.DuckDBDataProtocol.HTTP, false)
+    await conn.query(createTableQuery(table, url))
+
+  }
+
+  const loadAllData = async () => {
+    const existTable = await showTables()
+    for (const { table, url } of dataset) {
+      if (existTable.includes(table)) continue
+      await createTable(table, url)
+    }
+  }
+
+  await loadAllData()
 
   return {
-    listStation: async () => {
+    listCompany: async () => {
       const result = await conn.query(`
         SELECT line, company 
         FROM line
         LEFT JOIN company ON line.company_cd = company.company_cd
       `)
-      const record = parseRecord(result)
+      const record = parseArrowTableSimple(result)
       const schema = z.array(z.object({
         line: LineSchema,
         company: CompanySchema
       }))
       const parsed = schema.safeParse(record)
       return parsed.success ? parsed.data : []
+    },
+    listStation: async () => {
+      const result = await conn.query(`
+        SELECT 
+          station.station_g_cd, 
+          ARRAY_AGG(station) AS stations
+        FROM station
+        GROUP BY station.station_g_cd
+      `)
+
+      const schema = z.array(z.object({
+        station_g_cd: z.string().nullish(),
+        stations: z.array(StationSchema).nullish()
+      }))
+      return parseResult(result, schema)
+    },
+    testNested: async () => {
+      console.log("XXXXX")
+      const result = await conn.query(`
+        SELECT 
+          1 AS v_int,
+          1.2 AS v_float,
+          NULL AS v_null,
+          {"a":2, "b":'c', "d":NULL} AS v_struct, 
+          [1,2,3] AS v_list,
+          map([1, 2], ['a', 'b']) AS v_map,
+          {"a": { 
+            "b":'c',
+            "d": { "e": map([1,2],['a','b']) }
+          }} AS v_nested
+        `)
+
+      const r = parseArrowTableNested(result)
+      console.log("R", r[0])
+      return r
+    },
+    listStation2: async () => {
+      const result = await conn.query(`
+        SELECT 
+          station.station_g_cd, 
+          histogram(station.station_name) AS station_names,
+          ARRAY_AGG(station) AS stations
+        FROM station
+        GROUP BY station.station_g_cd
+      `)
+      console.log({ result })
+      const z2 = parseArrowTableNested(result)
+      console.log(z2)
+      const zz = result.toArray().map((t: any) => {
+        const { station_names, ...rr } = t.toJSON()
+        const ss = station_names.toJSON()
+        return {
+          ...rr,
+          station_names: ss
+        }
+      })
+      console.log({ zz })
+      // console.log({ result })
+      // const records = result.toArray().map(t => {
+      //   const rr = Object.entries(t.toJSON()).map(([key, value]) => {
+      //     return [key, superjson.serialize(value)]
+      //   })
+
+      //   const ss = rr["station_names"]
+      //   console.log("rs", rr)
+      //   console.log("sj", superjson.serialize(rr))
+      //   // console.log("rs", ss, ss.constructor.name)
+      //   return rr
+      // })
+
+      console.log({ records })
+
+      return records
     },
     lineConnection: async (stationCd: string) => {
       const result = await conn.query(`
@@ -122,26 +171,26 @@ export const database = async () => {
         WHERE s1.station_cd = ${stationCd}
         `)
       // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
-      const record = parseRecord(result)
+      const record = parseArrowTableSimple(result)
       console.log(record)
       return record
       // return parsed.success ? parsed.data : []
     },
-    searchAny: async (query: string) => {
+    searchStation: async (query: string) => {
       const result = await conn.query(`
         SELECT station
         FROM station
         WHERE station_name LIKE '%${query}%'
       `)
       // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
-      const record = parseRecord(result)
+      const record = parseArrowTableSimple(result)
       const schema = z.array(z.object({
         station: StationSchema
       }))
       const parsed = schema.safeParse(record)
       return parsed.success ? parsed.data.map(s => s.station) : []
     },
-    companyLines: async () => {
+    companyLineStationTree: async () => {
       const result = await conn.query(`
         WITH station_line AS (
           SELECT 
@@ -156,13 +205,13 @@ export const database = async () => {
         FROM company LEFT JOIN station_line ON company.company_cd = station_line.line.company_cd
         GROUP BY company.company_cd
       `)
-      const record = parseRecord(result)
+      const record = parseArrowTableSimple(result)
       const schema = z.array(z.object({
         company: CompanySchema,
         station_line: z.array(z.object({
           line: LineSchema.nullish(),
           station: z.array(StationSchema).nullish()
-        })).nullish()
+        }))
       }))
       const parsed = schema.safeParse(record)
       // console.log({ record, parsed })
@@ -174,5 +223,5 @@ export const database = async () => {
 }
 
 type Database = Awaited<ReturnType<typeof database>>
-export type StationResult = Awaited<ReturnType<Database["searchAny"]>>
-export type CompanyLinesResult = Awaited<ReturnType<Database["companyLines"]>>
+export type DatabaseResponse<T extends keyof Database> = Awaited<ReturnType<Database[T]>>
+export type StationResult = DatabaseResponse<"searchAny">

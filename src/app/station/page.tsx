@@ -24,7 +24,7 @@ const Page = () => {
           const q = e.currentTarget.value
           setQuery(q)
           startTransaction(async () => {
-            const result = await db?.searchAny(q)
+            const result = await db?.searchStation(q)
             setResult(result ?? [])
           })
         }} placeholder="Search..." />

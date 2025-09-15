@@ -6,7 +6,7 @@ import { database } from "./database"
 
 export const SampleComponent: FC<{}> = () => {
   const r = useSWR(["listStation"], async () => {
-    const { listStation } = await database()
+    const { listCompany: listStation } = await database()
     return listStation()
   })
   if (!r.data) return <div>Loading...</div>
