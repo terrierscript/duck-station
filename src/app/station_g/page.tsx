@@ -1,8 +1,9 @@
 "use client"
 import useSWR from "swr"
 import { useDatabase } from "../useDatabase"
-import { Box, Table } from "@mantine/core"
+import { Box, Button, Table } from "@mantine/core"
 import { database } from "../database"
+import { Connection } from "./[station_gcd]/Connection"
 
 const StationGroupPage = () => {
   const stationGroup = useSWR(["stationGroup"], async () => {
@@ -18,7 +19,11 @@ const StationGroupPage = () => {
         {stationGroup.data?.map((group, index) => (
           <Table.Tr key={index}>
             <Table.Td>{group.station_g_cd}</Table.Td>
-            <Table.Td>{group.station_names?.join(",")}</Table.Td>
+            <Table.Td>
+              {group.station_g_cd
+                && group.station_names
+                && <Connection station_names={group.station_names} station_gcd={group.station_g_cd} />}
+            </Table.Td>
           </Table.Tr>
         ))}
       </Table.Tbody>

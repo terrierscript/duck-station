@@ -117,8 +117,8 @@ export const database = async () => {
       const schema = z.array(z.object({
         s1: StationSchema,
         l1: LineJoinSchema,
+        s2: StationSchema,
         l2: LineJoinSchema,
-        s2: StationSchema
       }))
       return parseArray(result, schema)
       // return parsed.success ? parsed.data : []
