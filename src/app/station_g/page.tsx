@@ -7,7 +7,7 @@ import { database } from "../database"
 const StationGroupPage = () => {
   const stationGroup = useSWR(["stationGroup"], async () => {
     const db = await database()
-    const data = await db?.listStation2()
+    const data = await db?.listStation()
     const tn = await db?.testNested()
     console.log({ tn })
     return data

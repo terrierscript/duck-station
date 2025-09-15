@@ -1,7 +1,7 @@
 import * as duckdb from '@duckdb/duckdb-wasm'
 import arrow from 'apache-arrow'
 import z from 'zod'
-import { CompanySchema, LineSchema, StationSchema } from './Schema'
+import { CompanySchema, LineJoinSchema, LineSchema, StationSchema } from './Schema'
 import { buildDuckDbInstance } from './buildDuckDbInstance'
 import { parseArrowTable } from './parseRecord'
 
@@ -10,6 +10,7 @@ const parseArray = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema:
   const record = parseArrowTable(result)
   const parsedRecord = schema.safeParse(record)
   if (parsedRecord.success === false) {
+    console.log(record)
     console.warn(z.treeifyError(parsedRecord.error))
     console.warn(z.flattenError(parsedRecord.error))
     // console.warn(z.prettifyError(parsedRecord.error))
@@ -43,7 +44,7 @@ export const database = async () => {
     }
     for (const { table, url } of dataset) {
       const sample = await conn.query(`SELECT * FROM ${table} LIMIT 1;`)
-      console.log(table, JSON.stringify(Object.keys(parseArrowTableSimple(sample)[0])))
+      console.log(table, parseArrowTable(sample)[0])
     }
 
   }
@@ -89,29 +90,11 @@ export const database = async () => {
       const result = await conn.query(`
         SELECT 
           station.station_g_cd, 
-          ARRAY_AGG(station) AS stations
-        FROM station
-        GROUP BY station.station_g_cd
-      `)
-
-      const schema = z.array(z.object({
-        station_g_cd: z.string().nullish(),
-        stations: z.array(StationSchema).nullish()
-      }))
-      return parseArray(result, schema)
-    },
-
-    listStation2: async () => {
-      const result = await conn.query(`
-        SELECT 
-          station.station_g_cd, 
           ARRAY_AGG(DISTINCT station.station_name) AS station_names,
           ARRAY_AGG(station) AS stations
         FROM station
         GROUP BY station.station_g_cd
         `)
-      // console.log({ result })
-      // const z2 = parseArrowTableNested(result)
 
       const schema = z.array(z.object({
         station_g_cd: z.string().nullish(),
@@ -121,17 +104,23 @@ export const database = async () => {
 
       return parseArray(result, schema)
     },
-    lineConnection: async (stationCd: string) => {
+    lineConnection: async (stationGCd: string) => {
       const result = await conn.query(`
         SELECT s1, l1, l2, s2
         FROM station AS s1
-        LEFT JOIN line_join AS l1 ON l1.station_cd1 = s1.station_cd
-        LEFT JOIN line_join AS l2 ON l2.station_cd1 = s1.station_cd
-        LEFT JOIN station AS s2 ON l2.station_cd2 = s2.station_cd
-        WHERE s1.station_g_cd = ${stationCd}
+        JOIN line_join AS l1 ON l1.station_cd1 = s1.station_cd
+        JOIN line_join AS l2 ON l2.station_cd1 = s1.station_cd
+        JOIN station AS s2 ON l2.station_cd2 = s2.station_cd
+        WHERE s1.station_g_cd = ${stationGCd}
         `)
       // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
-      return parseArray(result, z.any())
+      const schema = z.array(z.object({
+        s1: StationSchema,
+        l1: LineJoinSchema,
+        l2: LineJoinSchema,
+        s2: StationSchema
+      }))
+      return parseArray(result, schema)
       // return parsed.success ? parsed.data : []
     },
     searchStation: async (query: string) => {
