@@ -3,20 +3,9 @@ import arrow from 'apache-arrow'
 import z from 'zod'
 import { CompanySchema, LineSchema, StationSchema } from './Schema'
 import { buildDuckDbInstance } from './buildDuckDbInstance'
-import { parseArrowTableSimple, parseArrowTable } from './parseRecord'
+import { parseArrowTable } from './parseRecord'
 
-const parseResult = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
-  const record = parseArrowTableSimple(result)
-  const parsedRecord = schema.safeParse(record)
-  if (parsedRecord.success === false) {
-    console.warn(z.treeifyError(parsedRecord.error))
-    console.warn(z.flattenError(parsedRecord.error))
-    // console.warn(z.prettifyError(parsedRecord.error))
-    return null
-  }
-  const data: z.core.output<U> = parsedRecord.data
-  return data
-}
+
 const parseArray = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
   const record = parseArrowTable(result)
   const parsedRecord = schema.safeParse(record)
@@ -90,13 +79,11 @@ export const database = async () => {
         FROM line
         LEFT JOIN company ON line.company_cd = company.company_cd
       `)
-      const record = parseArrowTableSimple(result)
       const schema = z.array(z.object({
         line: LineSchema,
         company: CompanySchema
       }))
-      const parsed = schema.safeParse(record)
-      return parsed.success ? parsed.data : []
+      return parseArray(result, schema)
     },
     listStation: async () => {
       const result = await conn.query(`
@@ -111,7 +98,7 @@ export const database = async () => {
         station_g_cd: z.string().nullish(),
         stations: z.array(StationSchema).nullish()
       }))
-      return parseResult(result, schema)
+      return parseArray(result, schema)
     },
 
     listStation2: async () => {
@@ -141,12 +128,10 @@ export const database = async () => {
         LEFT JOIN line_join AS l1 ON l1.station_cd1 = s1.station_cd
         LEFT JOIN line_join AS l2 ON l2.station_cd1 = s1.station_cd
         LEFT JOIN station AS s2 ON l2.station_cd2 = s2.station_cd
-        WHERE s1.station_cd = ${stationCd}
+        WHERE s1.station_g_cd = ${stationCd}
         `)
       // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
-      const record = parseArrowTableSimple(result)
-      console.log(record)
-      return record
+      return parseArray(result, z.any())
       // return parsed.success ? parsed.data : []
     },
     searchStation: async (query: string) => {
@@ -155,13 +140,10 @@ export const database = async () => {
         FROM station
         WHERE station_name LIKE '%${query}%'
       `)
-      // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
-      const record = parseArrowTableSimple(result)
       const schema = z.array(z.object({
         station: StationSchema
       }))
-      const parsed = schema.safeParse(record)
-      return parsed.success ? parsed.data.map(s => s.station) : []
+      return parseArray(result, schema)
     },
     companyLineStationTree: async () => {
       const result = await conn.query(`
@@ -178,7 +160,6 @@ export const database = async () => {
         FROM company LEFT JOIN station_line ON company.company_cd = station_line.line.company_cd
         GROUP BY company.company_cd
       `)
-      const record = parseArrowTableSimple(result)
       const schema = z.array(z.object({
         company: CompanySchema,
         station_line: z.array(z.object({
@@ -186,11 +167,7 @@ export const database = async () => {
           station: z.array(StationSchema).nullish()
         }))
       }))
-      const parsed = schema.safeParse(record)
-      // console.log({ record, parsed })
-      // parsed.error && console.log(z.treeifyError(parsed.error))
-
-      return parsed.success ? parsed.data : []
+      return parseArray(result, schema)
     },
     testNested: async () => {
 
@@ -229,4 +206,3 @@ export const database = async () => {
 
 type Database = Awaited<ReturnType<typeof database>>
 export type DatabaseResponse<T extends keyof Database> = Awaited<ReturnType<Database[T]>>
-export type StationResult = DatabaseResponse<"searchAny">
