@@ -148,15 +148,30 @@ export const database = async () => {
       // return parsed.success ? parsed.data : []
     },
     lineConnection2: async (stationGCd: string) => {
-      const result = await conn.query(`
-        SELECT DISTINCT dest_station AS station, line
-        FROM station base_station
-          JOIN line_join lj ON (base_station.station_cd = lj.station_cd1 OR base_station.station_cd = lj.station_cd2)
-          JOIN station dest_station ON (dest_station.station_cd = lj.station_cd1 OR dest_station.station_cd = lj.station_cd2)
-          JOIN line ON dest_station.line_cd = line.line_cd
-        WHERE base_station.station_g_cd = ${stationGCd}
-          AND dest_station.station_cd != base_station.station_cd
+      const pp = await conn.prepare(`
+        WITH 
+        both_lines AS (
+          SELECT line_cd, station_cd1 AS from_station_cd, station_cd2 AS dest_station_cd FROM line_join
+          UNION BY NAME
+          SELECT line_cd, station_cd2 AS from_station_cd, station_cd1 AS dest_station_cd FROM line_join
+        )
+        SELECT dest_station AS station, line
+        FROM station AS from_station
+        JOIN both_lines ON both_lines.from_station_cd = from_station.station_cd
+        JOIN station AS dest_station ON dest_station.station_cd = both_lines.dest_station_cd
+        JOIN line ON dest_station.line_cd = line.line_cd
+        WHERE from_station.station_g_cd = $1
         `)
+      const result = await pp.query(stationGCd)
+
+      // SELECT DISTINCT dest_station AS station, line
+      // FROM station base_station
+      //   JOIN line_join lj ON (base_station.station_cd = lj.station_cd1 OR base_station.station_cd = lj.station_cd2)
+      //   JOIN station dest_station ON (dest_station.station_cd = lj.station_cd1 OR dest_station.station_cd = lj.station_cd2)
+      //   JOIN line ON dest_station.line_cd = line.line_cd
+      // WHERE base_station.station_g_cd = ${stationGCd}
+      //   AND dest_station.station_cd != base_station.station_cd
+      // `)
 
       const schema = z.array(z.object({
         station: StationSchema,
