@@ -61,13 +61,15 @@ export const LoadGraph: FC<{ station_gcd: string, sigma: Sigma<NodeType, EdgeTyp
           const target = connection.station.station_g_cd
           const label = connection.station.station_name ?? "-"
           const color = `#${connection.line.line_color_c ?? "ccc"}`
-          if (graph.hasNode(target)) {
+          if (!graph.hasNode(target)) {
             console.log("skip node", target)
-            return
+            graph.addNode(target, { label, x: 0, y: 0, size: 15, color })
           }
-
-          graph.addNode(target, { label, x: 0, y: 0, size: 15, color })
-          graph.addEdge(event.node, target, { color })
+          if (graph.hasEdge(event.node, target)) {
+            graph.updateEdge(event.node, target)
+          } else {
+            graph.addEdge(event.node, target, { color })
+          }
           loadGraph(graph)
           assign()
         })
