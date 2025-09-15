@@ -1,4 +1,4 @@
-import type arrow from 'apache-arrow'
+import * as arrow from 'apache-arrow'
 
 export const parseArrowTableSimple = (record: arrow.Table) => {
   const records = record.toArray().map(t => {
@@ -6,6 +6,7 @@ export const parseArrowTableSimple = (record: arrow.Table) => {
   })
   return JSON.parse(JSON.stringify(records))
 }
+
 
 const parseValue = (val: any) => {
   if (typeof val === "bigint") {
@@ -15,24 +16,30 @@ const parseValue = (val: any) => {
 }
 
 const parseObject = (obj: arrow.StructRow) => {
-  const entries: any[] = Object.entries(obj).map(([key, val]: [string, any]) => {
-
-    if (typeof val?.toJSON === "function") {
-      return [key, parseObject(val.toJSON())]
-    }
-    if (typeof val?.toArray === "function") {
-      return [key, parseArrowTableNested(val)]
-    }
-    return [key, parseValue(val)]
-  })
-  return Object.fromEntries(entries)
-
+  try {
+    return JSON.parse(JSON.stringify(obj))
+  } catch {
+    const entries: any[] = Object.entries(obj).map(([key, val]: [string, any]) => {
+      if (typeof val?.toArray === "function") {
+        return [key, parseArrowTableNested(val)]
+      }
+      if (typeof val?.toJSON === "function") {
+        return [key, parseObject(val.toJSON())]
+      }
+      return [key, parseValue(val)]
+    })
+    return Object.fromEntries(entries)
+  }
 }
 
 export const parseArrowTableNested = (record: arrow.Table) => {
-  const converted = record.toArray().map(t => {
-    const value = t.toJSON()
-    return parseObject(value)
-  })
-  return JSON.parse(JSON.stringify(converted))
+  try {
+    const converted = record.toArray().map(t => {
+      return parseObject(t)
+    })
+    return JSON.parse(JSON.stringify(converted))
+  } catch (e) {
+    console.error(e)
+    throw e
+  }
 }

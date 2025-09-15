@@ -1,11 +1,8 @@
 import * as duckdb from '@duckdb/duckdb-wasm'
-import { compressTextToGzip } from './compress'
 import arrow from 'apache-arrow'
 import z from 'zod'
 import { CompanySchema, LineSchema, StationSchema } from './Schema'
-import traverse from 'traverse'
 import { buildDuckDbInstance } from './buildDuckDbInstance'
-import superjson from "superjson"
 import { parseArrowTableSimple, parseArrowTableNested } from './parseRecord'
 
 const parseResult = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
@@ -34,6 +31,7 @@ const createTableQuery = (table: string, url: string) => {
 }
 
 export const database = async () => {
+
   const db = await buildDuckDbInstance()
   const conn = await db.connect()
 
@@ -103,63 +101,27 @@ export const database = async () => {
       }))
       return parseResult(result, schema)
     },
-    testNested: async () => {
-      console.log("XXXXX")
-      const result = await conn.query(`
-        SELECT 
-          1 AS v_int,
-          1.2 AS v_float,
-          NULL AS v_null,
-          {"a":2, "b":'c', "d":NULL} AS v_struct, 
-          [1,2,3] AS v_list,
-          map([1, 2], ['a', 'b']) AS v_map,
-          {"a": { 
-            "b":'c',
-            "d": { "e": map([1,2],['a','b']) }
-          }} AS v_nested
-        `)
 
-      const r = parseArrowTableNested(result)
-      console.log("R", r[0])
-      return r
-    },
     listStation2: async () => {
       const result = await conn.query(`
         SELECT 
           station.station_g_cd, 
-          histogram(station.station_name) AS station_names,
+          ARRAY_AGG(DISTINCT station.station_name) AS station_names,
           ARRAY_AGG(station) AS stations
         FROM station
         GROUP BY station.station_g_cd
+        LIMIT 1
       `)
-      console.log({ result })
+      // console.log({ result })
       const z2 = parseArrowTableNested(result)
       console.log(z2)
-      const zz = result.toArray().map((t: any) => {
-        const { station_names, ...rr } = t.toJSON()
-        const ss = station_names.toJSON()
-        return {
-          ...rr,
-          station_names: ss
-        }
-      })
-      console.log({ zz })
-      // console.log({ result })
-      // const records = result.toArray().map(t => {
-      //   const rr = Object.entries(t.toJSON()).map(([key, value]) => {
-      //     return [key, superjson.serialize(value)]
-      //   })
+      const schema = z.array(z.object({
+        station_g_cd: z.string().nullish(),
+        stations_name: z.array(z.string()).nullish(),
+        stations: z.array(StationSchema).nullish()
+      }))
 
-      //   const ss = rr["station_names"]
-      //   console.log("rs", rr)
-      //   console.log("sj", superjson.serialize(rr))
-      //   // console.log("rs", ss, ss.constructor.name)
-      //   return rr
-      // })
-
-      console.log({ records })
-
-      return records
+      return parseResult(result, schema)
     },
     lineConnection: async (stationCd: string) => {
       const result = await conn.query(`
@@ -218,7 +180,39 @@ export const database = async () => {
       // parsed.error && console.log(z.treeifyError(parsed.error))
 
       return parsed.success ? parsed.data : []
-    }
+    },
+    testNested: async () => {
+      console.log("XXXXX")
+      const result = await conn.query(`
+        SELECT 
+          1 AS v_int,
+          1.2::FLOAT AS v_float,
+          NULL AS v_null,
+          {"a":2, "b":'c', "d":NULL} AS v_struct, 
+          [1,2,3] AS v_list,
+          ['abc','def'] AS v_str_list,
+          map([1, 2], ['a', 'b']) AS v_map,
+          DATE '1992-03-27' - INTERVAL 5 DAY AS v_date,
+          TIME '12:34' AS v_time,
+          'infinity'::DATE AS v_infinity,
+          true AS v_boolean,
+          { "a": { 
+            "b":'c',
+            "d": {
+              "e": map([1,2],['a','b']) ,
+              "f": DATE '1992-03-27' - INTERVAL 5 DAY,
+              "g": {
+                "h": false
+              }
+            }
+          }} AS v_nested,
+        `)
+      console.log(result)
+      const r = parseArrowTableNested(result)
+      console.log("R", r[0])
+      // console.log("R", r[0], JSON.stringify(r[0], null, 2))
+      return r
+    },
   }
 }
 
