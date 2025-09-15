@@ -106,19 +106,23 @@ export const database = async () => {
     },
     lineConnection: async (stationGCd: string) => {
       const result = await conn.query(`
-        SELECT s1, l1, l2, s2
+        SELECT s1, l1, l2, s2, line
         FROM station AS s1
         JOIN line_join AS l1 ON l1.station_cd1 = s1.station_cd
         JOIN line_join AS l2 ON l2.station_cd1 = s1.station_cd
+        JOIN line ON l2.line_cd = line.line_cd
         JOIN station AS s2 ON l2.station_cd2 = s2.station_cd
         WHERE s1.station_g_cd = ${stationGCd}
         `)
+
+      console.log(parseArrowTable(result))
       // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
       const schema = z.array(z.object({
         s1: StationSchema,
         l1: LineJoinSchema,
         s2: StationSchema,
         l2: LineJoinSchema,
+        line: LineSchema,
       }))
       return parseArray(result, schema)
       // return parsed.success ? parsed.data : []
