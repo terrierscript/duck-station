@@ -54,7 +54,7 @@ export const LoadGraph: FC<{ sigma: Sigma<NodeType, EdgeType> | null }> = ({ sig
         conn?.map(connection => {
           const target = connection.s2.station_g_cd
           const label = connection.s2.station_name ?? "-"
-          const color = `#${connection.line.line_color_c ?? "000"}`
+          const color = `#${connection.line.line_color_c ?? "ccc"}`
           if (graph.hasNode(target)) {
             console.log("skip node", target)
             return
