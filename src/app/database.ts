@@ -17,6 +17,18 @@ const parseResult = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema
   const data: z.core.output<U> = parsedRecord.data
   return data
 }
+const parseArray = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
+  const record = parseArrowTableNested(result)
+  const parsedRecord = schema.safeParse(record)
+  if (parsedRecord.success === false) {
+    console.warn(z.treeifyError(parsedRecord.error))
+    console.warn(z.flattenError(parsedRecord.error))
+    // console.warn(z.prettifyError(parsedRecord.error))
+    return null
+  }
+  const data: z.core.output<U> = parsedRecord.data
+  return data
+}
 
 const host = "http://localhost:3001"
 const dataset = [
@@ -110,18 +122,17 @@ export const database = async () => {
           ARRAY_AGG(station) AS stations
         FROM station
         GROUP BY station.station_g_cd
-        LIMIT 1
-      `)
+        `)
       // console.log({ result })
-      const z2 = parseArrowTableNested(result)
-      console.log(z2)
+      // const z2 = parseArrowTableNested(result)
+
       const schema = z.array(z.object({
         station_g_cd: z.string().nullish(),
-        stations_name: z.array(z.string()).nullish(),
+        station_names: z.array(z.string()).nullish(),
         stations: z.array(StationSchema).nullish()
       }))
 
-      return parseResult(result, schema)
+      return parseArray(result, schema)
     },
     lineConnection: async (stationCd: string) => {
       const result = await conn.query(`

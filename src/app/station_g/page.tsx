@@ -18,7 +18,7 @@ const StationGroupPage = () => {
         {stationGroup.data?.map((group, index) => (
           <Table.Tr key={index}>
             <Table.Td>{group.station_g_cd}</Table.Td>
-            <Table.Td>{group.stations_name}</Table.Td>
+            <Table.Td>{group.station_names?.join(",")}</Table.Td>
           </Table.Tr>
         ))}
       </Table.Tbody>

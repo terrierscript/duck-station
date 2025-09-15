@@ -15,15 +15,18 @@ const parseValue = (val: any) => {
   return val
 }
 
-const parseObject = (obj: arrow.StructRow) => {
+const parseObject = (obj: arrow.StructRow | arrow.Table) => {
   try {
     return JSON.parse(JSON.stringify(obj))
   } catch {
+    console.log("sts")
     const entries: any[] = Object.entries(obj).map(([key, val]: [string, any]) => {
       if (typeof val?.toArray === "function") {
+        console.log("arr", val.toArray())
         return [key, parseArrowTableNested(val)]
       }
       if (typeof val?.toJSON === "function") {
+        console.log("val", val.toJSON())
         return [key, parseObject(val.toJSON())]
       }
       return [key, parseValue(val)]
