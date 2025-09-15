@@ -3,7 +3,7 @@ import arrow from 'apache-arrow'
 import z from 'zod'
 import { CompanySchema, LineSchema, StationSchema } from './Schema'
 import { buildDuckDbInstance } from './buildDuckDbInstance'
-import { parseArrowTableSimple, parseArrowTableNested } from './parseRecord'
+import { parseArrowTableSimple, parseArrowTable } from './parseRecord'
 
 const parseResult = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
   const record = parseArrowTableSimple(result)
@@ -18,7 +18,7 @@ const parseResult = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema
   return data
 }
 const parseArray = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema: U): z.core.output<U> | null => {
-  const record = parseArrowTableNested(result)
+  const record = parseArrowTable(result)
   const parsedRecord = schema.safeParse(record)
   if (parsedRecord.success === false) {
     console.warn(z.treeifyError(parsedRecord.error))
@@ -193,7 +193,7 @@ export const database = async () => {
       return parsed.success ? parsed.data : []
     },
     testNested: async () => {
-      console.log("XXXXX")
+
       const result = await conn.query(`
         SELECT 
           1 AS v_int,
@@ -218,8 +218,8 @@ export const database = async () => {
             }
           }} AS v_nested,
         `)
-      console.log(result)
-      const r = parseArrowTableNested(result)
+
+      const r = parseArrowTable(result)
       console.log("R", r[0])
       // console.log("R", r[0], JSON.stringify(r[0], null, 2))
       return r

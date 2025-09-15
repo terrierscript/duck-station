@@ -17,7 +17,6 @@ export const buildDuckDbInstance = async () => {
     const db = new duckdb.AsyncDuckDB(logger, worker)
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker)
     URL.revokeObjectURL(worker_url)
-
     return db
   } catch (e) {
     console.error(e)

@@ -15,34 +15,12 @@ const parseValue = (val: any) => {
   return val
 }
 
-const parseObject = (obj: arrow.StructRow | arrow.Table) => {
-  try {
-    return JSON.parse(JSON.stringify(obj))
-  } catch {
-    console.log("sts")
-    const entries: any[] = Object.entries(obj).map(([key, val]: [string, any]) => {
-      if (typeof val?.toArray === "function") {
-        console.log("arr", val.toArray())
-        return [key, parseArrowTableNested(val)]
-      }
-      if (typeof val?.toJSON === "function") {
-        console.log("val", val.toJSON())
-        return [key, parseObject(val.toJSON())]
-      }
-      return [key, parseValue(val)]
-    })
-    return Object.fromEntries(entries)
-  }
-}
 
-export const parseArrowTableNested = (record: arrow.Table) => {
-  try {
-    const converted = record.toArray().map(t => {
-      return parseObject(t)
-    })
-    return JSON.parse(JSON.stringify(converted))
-  } catch (e) {
-    console.error(e)
-    throw e
-  }
+export const parseArrowTable = (record: arrow.Table) => {
+  return JSON.parse(JSON.stringify(record.toArray(), (_, value) => {
+    if (typeof value === "bigint") {
+      return Number(value)
+    }
+    return value
+  }))
 }
