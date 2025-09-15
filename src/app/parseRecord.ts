@@ -17,10 +17,14 @@ const parseValue = (val: any) => {
 
 
 export const parseArrowTable = (record: arrow.Table) => {
-  return JSON.parse(JSON.stringify(record.toArray(), (_, value) => {
-    if (typeof value === "bigint") {
-      return Number(value)
-    }
-    return value
-  }))
+  return record.toArray().map(t => {
+    return JSON.parse(
+      JSON.stringify(t, (_, value) => {
+        if (typeof value === "bigint") {
+          return Number(value)
+        }
+        return value
+      })
+    )
+  })
 }
