@@ -16,6 +16,7 @@
     "@react-sigma/layout-forceatlas2": "^5.0.4",
     "@react-sigma/layout-noverlap": "^5.0.4",
     "@react-sigma/layout-random": "^5.0.4",
+    "@sigma/node-border": "^3.0.0",
     "@tabler/icons-react": "^3.34.1",
     "@types/react-dom": "^19.1.9",
     "@types/traverse": "^0.6.37",

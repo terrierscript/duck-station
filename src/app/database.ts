@@ -149,37 +149,15 @@ export const database = async () => {
     },
     lineConnection2: async (stationGCd: string) => {
       const result = await conn.query(`
-        WITH base_station_gcd AS (
-          SELECT *
-          FROM station 
-          JOIN line ON station.line_cd = line.line_cd
-          WHERE station.station_g_cd = ${stationGCd}
-        ),
-        l1 AS (
-          SELECT station.*
-          FROM base_station_gcd
-          JOIN line_join ON line_join.station_cd1 = base_station_gcd.station_cd
-          JOIN station ON line_join.station_cd2 = station.station_cd
-        ),
-        l2 AS (
-          SELECT station.* 
-          FROM base_station_gcd
-          JOIN line_join ON line_join.station_cd2 = base_station_gcd.station_cd
-          JOIN station ON line_join.station_cd1 = station.station_cd
-        ), 
-        dest_stations AS (
-          SELECT * FROM l1
-          UNION ALL BY NAME
-          SELECT * FROM l2
-        )
-        SELECT station, line
-        FROM dest_stations AS station
-        JOIN line ON station.line_cd = line.line_cd
-
+        SELECT DISTINCT dest_station AS station, line
+        FROM station base_station
+          JOIN line_join lj ON (base_station.station_cd = lj.station_cd1 OR base_station.station_cd = lj.station_cd2)
+          JOIN station dest_station ON (dest_station.station_cd = lj.station_cd1 OR dest_station.station_cd = lj.station_cd2)
+          JOIN line ON dest_station.line_cd = line.line_cd
+        WHERE base_station.station_g_cd = ${stationGCd}
+          AND dest_station.station_cd != base_station.station_cd
         `)
 
-      console.log(parseArrowTable(result))
-      // LEFT JOIN station AS s2 ON l1.station_cd2 = s2.station_cd
       const schema = z.array(z.object({
         station: StationSchema,
         line: LineSchema,
