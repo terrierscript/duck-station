@@ -1,6 +1,4 @@
-import Head from 'next/head'
 import React from 'react'
-import { SampleComponent } from './SampleComponent'
 import { Box, Container } from '@mantine/core'
 import Link from 'next/link'
 
