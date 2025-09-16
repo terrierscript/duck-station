@@ -65,12 +65,13 @@ export const LoadGraph: FC<{ station_gcd: string, sigma: Sigma<NodeType, EdgeTyp
 
     registerEvents({
       clickNode: async (event) => {
-        console.log(event)
+
         const node = graph.getNodeAttributes(event.node)
+        if (node.opened) return
         console.log(">", node.label)
         // const nodes = db?.lineConnection(event.node)
         const conn = await db?.lineConnection2(event.node)
-        graph.updateNodeAttributes(event.node, (val) => ({ ...val, borderColor: "black" }))
+        graph.updateNodeAttributes(event.node, (val) => ({ ...val, borderColor: "black", opened: true }))
         conn?.map(connection => {
           const target = connection.station.station_g_cd
           const label = connection.station.station_name ?? "-"
