@@ -1,18 +1,24 @@
 "use client"
 import useSWR from "swr"
 import { useDatabase } from "../useDatabase"
-import { Box, Button, Table } from "@mantine/core"
+import { Box, Button, Group, Loader, Table } from "@mantine/core"
 import { database } from "../database"
 import { Connection } from "./[station_gcd]/Connection"
 
 const StationGroupPage = () => {
-  const stationGroup = useSWR(["stationGroup"], async () => {
-    const db = await database()
+  const db = useDatabase()
+  const stationGroup = useSWR(["stationGroup", db], async () => {
     const data = await db?.listStation()
     const tn = await db?.testNested()
     console.log({ tn })
     return data
   })
+  if (stationGroup.isLoading) {
+    return <Group>
+      <Loader />
+      <Box>よみこみちゅう</Box>
+    </Group>
+  }
   return <Box>
     <Table>
       <Table.Tbody>

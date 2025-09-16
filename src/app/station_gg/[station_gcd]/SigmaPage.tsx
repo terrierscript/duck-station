@@ -11,8 +11,9 @@ import { NodeBorderProgram } from "@sigma/node-border"
 
 import type Sigma from "sigma"
 import { useParams } from "next/navigation"
+import { Box } from "@mantine/core"
 
-const sigmaStyle = { height: "100vh", width: "100vw" }
+const sigmaStyle = { height: "100vh", width: "100vw", backgroundColor: "#eee" }
 
 const Fa2Layout = () => {
   const { start, kill } = useWorkerLayoutForceAtlas2({
@@ -105,10 +106,12 @@ export const DisplayGraph: FC<{ station_gcd: string }> = ({ station_gcd }) => {
   const [sigma, setSigma] = useState<Sigma<NodeType, EdgeType> | null>(null)
 
   return (
-    <SigmaContainer style={sigmaStyle} ref={setSigma}>
-      <LoadGraph station_gcd={station_gcd} sigma={sigma} />
-      <Fa2Layout />
-    </SigmaContainer>
+    <Box bg="gray.4">
+      <SigmaContainer style={sigmaStyle} ref={setSigma} >
+        <LoadGraph station_gcd={station_gcd} sigma={sigma} />
+        <Fa2Layout />
+      </SigmaContainer>
+    </Box>
   )
 }
 export default DisplayGraph

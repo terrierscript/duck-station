@@ -5,14 +5,16 @@ import { useDeferredValue, useState, useTransition } from "react"
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { useDatabase } from "../useDatabase"
-import type { StationResult } from "../database"
+import type { DatabaseResponse } from "../database"
+import Link from "next/link"
 
 const Page = () => {
   const [q, setQuery] = useState("")
-  const [result, setResult] = useState<StationResult>([])
+  const [result, setResult] = useState<DatabaseResponse<"searchStation">>([])
   const [isPending, startTransaction] = useTransition()
   const db = useDatabase()
-  const { data } = useSWR(["station", q], ([_, q]) => {
+  const { data } = useSWR(["station", db, q], () => {
+    return db?.searchStation(q)
   })
   const deferredResult = useDeferredValue(data)
 
@@ -33,11 +35,16 @@ const Page = () => {
       {isPending ? (
         <Box>Loading...</Box>
       ) : (
-        result?.map((station, i) => (
+        result?.map(({ station }, i) => (
           <Group key={i}>
 
             <Box>
               {station.station_cd}:
+            </Box>
+            <Box>
+              <Link href={`/station_gg/${station.station_g_cd}`}>
+                {station.station_g_cd}
+              </Link>
             </Box>
             <Box>
               {station.station_name}
