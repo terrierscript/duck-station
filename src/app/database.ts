@@ -20,20 +20,19 @@ const parseArray = <T, U extends z.ZodType<T>>(result: arrow.Table<any>, schema:
   return data
 }
 
-const host = "http://localhost:3001"
-const dataset = [
-  { table: "company", url: `${host}/station/company.csv` },
-  { table: "line_join", url: `${host}/station/line_join.csv` },
-  { table: "line", url: `${host}/station/line.csv` },
-  { table: "station", url: `${host}/station/station.csv` },
-]
 
 const createTableQuery = (table: string, url: string) => {
   return `CREATE OR REPLACE TABLE ${table} AS SELECT * FROM read_csv('${url}', all_varchar=true);`
 }
 
-export const database = async () => {
+export const database = async (host: string) => {
 
+  const dataset = [
+    { table: "company", url: `${host}/station/company.csv` },
+    { table: "line_join", url: `${host}/station/line_join.csv` },
+    { table: "line", url: `${host}/station/line.csv` },
+    { table: "station", url: `${host}/station/station.csv` },
+  ]
   const db = await buildDuckDbInstance()
   const conn = await db.connect()
 
@@ -157,9 +156,9 @@ export const database = async () => {
         )
         SELECT dest_station AS station, line
         FROM station AS from_station
-        JOIN both_lines ON both_lines.from_station_cd = from_station.station_cd
-        JOIN station AS dest_station ON dest_station.station_cd = both_lines.dest_station_cd
-        JOIN line ON dest_station.line_cd = line.line_cd
+          JOIN both_lines ON both_lines.from_station_cd = from_station.station_cd
+          JOIN station AS dest_station ON dest_station.station_cd = both_lines.dest_station_cd
+          JOIN line ON dest_station.line_cd = line.line_cd
         WHERE from_station.station_g_cd = $1
         `)
       const result = await pp.query(stationGCd)
