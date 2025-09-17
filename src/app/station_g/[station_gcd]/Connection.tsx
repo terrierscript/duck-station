@@ -7,17 +7,17 @@ import { useDatabase } from "../../useDatabase"
 const ConnectionInternal: FC<{ station_gcd: string }> = ({ station_gcd }) => {
   const db = useDatabase()
   const { data, isLoading } = useSWR(["station_g", db, station_gcd], async () => {
-    return await db?.lineConnection(station_gcd)
+    return await db?.lineConnection2(station_gcd)
   })
   if (isLoading) return <Loader />
   console.log(station_gcd, data)
 
   return <Box>
     {data?.map((d, i) => {
-      if (!d.s2?.station_g_cd) return null
-      return <Box key={d.s2.station_cd}>
-        {d.s2.station_name}
-        <Connection station_gcd={d.s2.station_g_cd} station_names={[d.s2.station_name!]} />
+      if (!d.station || !d.line || !d.station.station_g_cd) return null
+      return <Box key={d.station.station_cd}>
+        {d.station.station_name}
+        <Connection station_gcd={d.station.station_g_cd} station_names={[d.station.station_name!]} />
       </Box>
     })}
   </Box>
