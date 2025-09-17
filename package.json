@@ -24,6 +24,7 @@
     "graphology-layout": "^0.6.1",
     "graphology-layout-forceatlas2": "^0.10.1",
     "graphology-types": "^0.24.8",
+    "kysely": "^0.28.7",
     "next": "^15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

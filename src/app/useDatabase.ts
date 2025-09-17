@@ -1,5 +1,5 @@
 import useSWRImmutable from "swr/immutable"
-import { database } from "./database"
+import { database } from "../lib/database"
 
 export const useDatabase = () => {
   const data = useSWRImmutable("database", async () => {

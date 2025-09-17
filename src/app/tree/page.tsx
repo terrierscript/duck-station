@@ -3,7 +3,7 @@ import useSWRImmutable from "swr/immutable"
 import { useDatabase } from "../useDatabase"
 import { Box, Group, Paper, Tree, type TreeNodeData } from "@mantine/core"
 import { IconChevronDown, IconChevronRight, IconPointFilled } from '@tabler/icons-react'
-import type { DatabaseResponse } from "../database"
+import type { DatabaseResponse } from "../../lib/database"
 
 const convertToTree = (data?: DatabaseResponse<"companyLineStationTree">) => {
   return data?.map(c => ({

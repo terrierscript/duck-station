@@ -5,7 +5,7 @@ import { useDeferredValue, useState, useTransition } from "react"
 import useSWR from "swr"
 import useSWRMutation from "swr/mutation"
 import { useDatabase } from "../useDatabase"
-import type { DatabaseResponse } from "../database"
+import type { DatabaseResponse } from "../../lib/database"
 import Link from "next/link"
 
 const Page = () => {

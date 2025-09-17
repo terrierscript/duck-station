@@ -2,7 +2,7 @@
 import useSWR from "swr"
 import { useDatabase } from "../useDatabase"
 import { Box, Button, Group, Loader, Table } from "@mantine/core"
-import { database } from "../database"
+import { database } from "../../lib/database"
 import { Connection } from "./[station_gcd]/Connection"
 
 const StationGroupPage = () => {
