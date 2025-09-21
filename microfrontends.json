@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/microfrontends.json",
+  "applications": {
+    "duck-station": {
+      "development": {
+        "fallback": "duck-station.vercel.app"
+      }
+    }
+  }
+}
