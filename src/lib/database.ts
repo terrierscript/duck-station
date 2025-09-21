@@ -2,7 +2,7 @@ import * as duckdb from '@duckdb/duckdb-wasm'
 import arrow from 'apache-arrow'
 import z from 'zod'
 import { CompanySchema, LineJoinSchema, LineSchema, StationSchema } from './Schema'
-import { buildDuckDbInstance } from '../app/buildDuckDbInstance'
+import { buildDuckDbInstance } from './buildDuckDbInstance'
 import { parseArrowTable } from './parseRecord'
 
 
